@@ -63,18 +63,3 @@ if chosen_function in functions:
     find_minima(function_to_launch, globals()[f"{function_to_launch.__name__.upper()}_BOUNDS"],  True if wanna_animate == "y" else False)
 else:
     print("Invalid input. Please enter a number between 1 and 9.")
-
-
-
-
-
-# find_minima(sphere, SPHERE_BONDS)
-# find_minima(schwefel, SCHWEFEL_BOUNDS)
-# find_minima(ackley, ACKLEY_BOUNDS)
-# find_minima(rastrigin, RASTRIGIN_BOUNDS)
-# find_minima(rosenbrock, ROSENBROCK_BOUNDS)
-# find_minima(griewangk, GRIEWANGK_BOUNDS)
-# find_minima(levy, LEVY_BOUNDS)
-# find_minima(michalewicz, MICHALEWICZ_BOUNDS)
-# find_minima(zakharov, ZAKHAROV_BOUNDS)
-
