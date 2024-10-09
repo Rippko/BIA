@@ -5,7 +5,7 @@ from matplotlib.animation import FuncAnimation
 from matplotlib import cm
 
 
-SPHERE_BONDS = (-5.12, 5.12)
+SPHERE_BOUNDS = (-5.12, 5.12)
 SCHWEFEL_BOUNDS = (-500, 500)
 ACKLEY_BOUNDS = (-5, 5)
 RASTRIGIN_BOUNDS = (-5.12, 5.12)
