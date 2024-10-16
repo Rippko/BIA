@@ -1,4 +1,5 @@
 import numpy as np
+from colorama import Fore
 from animation_students import (
     render_graph,
     render_anim,
@@ -21,7 +22,8 @@ from animation_students import (
     michalewicz,
     ZAKHAROV_BOUNDS,
     zakharov,
-    blind_search
+    blind_search,
+    hill_climbing,
 )
 
 def generate_random_data(function, bounds, num_points=50, num_frames=10):
@@ -32,16 +34,21 @@ def generate_random_data(function, bounds, num_points=50, num_frames=10):
 
 def visualize_function(function, bounds, xy_data, z_data ,step=0.1, title="Function Visualization"):
     X_surf, Y_surf, Z_surf = make_surface(min=bounds[0], max=bounds[1], function=function, step=step)
-    render_graph(X_surf, Y_surf, Z_surf, title)
+    # render_graph(X_surf, Y_surf, Z_surf, title)
     render_anim(X_surf, Y_surf, Z_surf, xy_data, z_data, title)
 
-def find_minima(function, bounds, animate=True):
-    best_position, best_value, xy_data, z_data = blind_search(function, bounds, 100000)
-    if animate:
-        visualize_function(function, bounds, xy_data, z_data, title=f"{function.__name__} Function")
+def launch(function, bounds, algorithm="blind_search", animate=True):
+    if algorithm == "blind_search":
+        best_position, best_value, xy_data, z_data = blind_search(function, bounds, 100000)
+    elif algorithm == "hill_climbing":
+        best_position, best_value, xy_data, z_data = hill_climbing(function, bounds, num_iterations=100000, num_neighbors=5)
     else:
-        visualize_function(function, bounds, best_position, best_value, title=f"{function.__name__} Function")
+        raise ValueError(f"Unknown algorithm: {algorithm}")
     
+    if animate:
+        visualize_function(function, bounds, xy_data, z_data, title=f"{function.__name__} Function ({algorithm})")
+    else:
+        visualize_function(function, bounds, best_position, best_value, title=f"{function.__name__} Function ({algorithm})")    
 
 functions = {
     "1": sphere,
@@ -55,11 +62,19 @@ functions = {
     "9": zakharov
 }
 
-chosen_function = input("Enter which function you would like to display\n (1) Sphere\n (2) Schwefel\n (3) Ackley\n (4) Rastrigin\n (5) Rosenbrock\n (6) Griewangk\n (7) Levy\n (8) Michalewicz\n (9) Zakharov\n")
-wanna_animate = input("Would you like to animate the function? (y/n)")
+while True:
+    chosen_function = input(f"{Fore.MAGENTA}Enter which function you would like to display\n {Fore.GREEN}(1) Sphere\n (2) Schwefel\n (3) Ackley\n (4) Rastrigin\n (5) Rosenbrock\n (6) Griewangk\n (7) Levy\n (8) Michalewicz\n (9) Zakharov\n (0) Exit\n {Fore.RESET}")
+    if chosen_function == "0":
+        print(f"{Fore.YELLOW}Exiting...See you next time! {Fore.RESET}")
+        break
 
-if chosen_function in functions:
-    function_to_launch = functions[chosen_function]
-    find_minima(function_to_launch, globals()[f"{function_to_launch.__name__.upper()}_BOUNDS"],  True if wanna_animate == "y" else False)
-else:
-    print("Invalid input. Please enter a number between 1 and 9.")
+    wanna_animate = input("Would you like to animate the function? (y/n)")
+    
+    chosen_algorithm = input("Choose algorithm: (1) Blind Search, (2) Hill Climbing\n")
+    algorithm_to_launch = "blind_search" if chosen_algorithm == "1" else "hill_climbing"
+    
+    if chosen_function in functions:
+        function_to_launch = functions[chosen_function]
+        launch(function_to_launch, globals()[f"{function_to_launch.__name__.upper()}_BOUNDS"], algorithm_to_launch, True if wanna_animate == "y" else False)
+    else:
+        print("Invalid input. Please enter a number between 1 and 9.")
