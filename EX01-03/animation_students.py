@@ -1,8 +1,11 @@
 import numpy as np
+import seaborn as sns
 
 from matplotlib import pyplot as plt
 from matplotlib.animation import FuncAnimation
 from matplotlib import cm
+
+from copy import deepcopy
 
 
 SPHERE_BOUNDS = (-5.12, 5.12)
@@ -120,6 +123,96 @@ def hill_climbing(
     best_value = [np.array([best_value])]
     return best_position, best_value, xy_data, z_data
 
+def simulated_annealing(
+    function: callable,
+    bounds: tuple[float, float],
+    min_temperature: int,
+    initial_temperature: float,
+    cooling_rate: float,
+    sigma: float = 0.5,
+):
+    current_position = np.random.uniform(bounds[0], bounds[1], 2)
+    current_value = function(current_position)
+    
+    best_position = current_position
+    best_value = current_value
+
+    xy_data = [np.array([current_position])]
+    z_data = [np.array([current_value])]
+    
+    temperature = initial_temperature
+
+    while temperature > min_temperature:
+        neighbor = current_position + np.random.normal(0, sigma, 2)
+        neighbor = np.clip(neighbor, bounds[0], bounds[1])
+        
+        neighbor_value = function(neighbor)
+        
+        delta_value = neighbor_value - current_value
+
+        if delta_value < 0 or np.random.rand() < np.exp(-delta_value / temperature):
+            current_position = neighbor
+            current_value = neighbor_value
+        
+        if current_value < best_value:
+            best_position = current_position
+            best_value = current_value
+            
+            xy_data.append(np.array([current_position]))
+            z_data.append(np.array([current_value]))
+        
+        temperature *= cooling_rate
+        
+    best_position = [np.array([best_position])]
+    best_value = [np.array([best_value])]
+    
+    return best_position, best_value, xy_data, z_data
+
+def differential_evolution(
+    function, bounds, dimension, NP, g_max, F, CR
+):
+    lower_bound, upper_bound = bounds
+    pop = np.random.uniform(lower_bound, upper_bound, (NP, dimension))
+    fitness = np.array([function(ind) for ind in pop])
+    xy_data, z_data = [], []
+
+    g = 0
+    while g < g_max:
+        new_pop = deepcopy(pop)
+        new_fitness = deepcopy(fitness)
+
+        for i in range(NP):
+            indices = [idx for idx in range(NP) if idx != i]
+            r1, r2, r3 = np.random.choice(indices, 3, replace=False)
+            v = pop[r1] + F * (pop[r2] - pop[r3])
+            v = np.clip(v, lower_bound, upper_bound)
+            u = np.copy(pop[i])
+            j_rand = np.random.randint(0, dimension)
+
+            for j in range(dimension):
+                if np.random.uniform(0, 1) < CR or j == j_rand:
+                    u[j] = v[j]
+
+            f_u = function(u)
+            
+            if f_u <= fitness[i]:
+                new_pop[i] = u
+                new_fitness[i] = f_u
+
+        pop = new_pop
+        fitness = new_fitness
+
+        xy_data.append(np.copy(pop[:, :2]))
+        z_data.append(np.copy(fitness))
+
+        g += 1
+
+    best_position = [np.array(pop[np.argmin(fitness)])]
+    best_value = [np.array(np.min(fitness))] 
+
+    return best_position, best_value, xy_data, z_data
+
+
 def update_frame(
     i: int,
     xy_data: list[np.array],
@@ -154,6 +247,10 @@ def render_anim(
         alpha=0.6,
     )
     if len(xy_data) > 0 and len(z_data) > 0:
+        if xy_data[0].ndim == 1:
+            xy_data[0] = xy_data[0].reshape(1, -1)
+        if z_data[0].ndim == 0:
+            z_data[0] = np.array([z_data[0]])
         scat = ax.scatter(xy_data[0][:, 0], xy_data[0][:, 1], z_data[0], c="red")
 
         animation = FuncAnimation(
@@ -161,7 +258,7 @@ def render_anim(
             update_frame,
             len(xy_data),
             fargs=(xy_data, z_data, [scat], [ax]),
-            interval=1000,
+            interval=300,
             repeat=False,
         )
     else:
@@ -203,3 +300,48 @@ def make_surface(
     X, Y = np.meshgrid(X, Y)
     Z = function(np.array([X, Y]))
     return X, Y, Z
+
+
+def plot_heatmap(function, bounds, xy_data, z_data, step=0.1, title="Heatmap"):
+    x_points = [pos[0][0] for pos in xy_data]
+    y_points = [pos[0][1] for pos in xy_data]
+    z_points = [val[0] for val in z_data]
+    X, Y = np.meshgrid(
+        np.arange(bounds[0], bounds[1], step),
+        np.arange(bounds[0], bounds[1], step)
+    )
+    Z = function(np.array([X, Y]))
+    
+    plt.figure(figsize=(10, 8))
+    plt.contourf(X, Y, Z, cmap="viridis", levels=50)
+    plt.colorbar(label="Function Value")
+
+    # Plot the path over the heatmap
+    plt.plot(x_points, y_points, marker='o', color='red', markersize=4)
+    plt.scatter(x_points[-1], y_points[-1], color='blue', label='Best Position', zorder=5)
+    plt.title(title)
+    plt.xlabel("X-axis")
+    plt.ylabel("Y-axis")
+    plt.legend()
+    plt.show()
+
+# def render_static(
+#     function: callable,
+#     bounds: tuple[float, float],
+#     best_position: np.array,
+#     best_value: np.array,
+#     title: str
+# ):
+#     fig = plt.figure()
+#     fig.canvas.manager.set_window_title(title)
+#     ax = plt.axes(projection="3d")
+#     X_surf, Y_surf, Z_surf = make_surface(min=bounds[0], max=bounds[1], function=function, step=0.1)
+#     ax.plot_surface(X_surf, Y_surf, Z_surf, cmap=cm.coolwarm, linewidth=0, antialiased=False, alpha=0.6)
+#     ax.scatter(
+#         best_position[0],  # X coordinate of the best position
+#         best_position[1],  # Y coordinate of the best position
+#         best_value,        # Z value (height) at the best position
+#         c="red", s=100, label="Best Position"
+#     )
+#     plt.title(title)
+#     plt.show()
