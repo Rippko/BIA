@@ -1,5 +1,6 @@
 import numpy as np
 from colorama import Fore
+import time
 from animation_students import (
     render_graph,
     render_anim,
@@ -28,6 +29,7 @@ from animation_students import (
     plot_heatmap,
     differential_evolution,
     particle_swarm_optimization,
+    soma,
 )
 
 def generate_random_data(function, bounds, num_points=50, num_frames=10):
@@ -36,14 +38,9 @@ def generate_random_data(function, bounds, num_points=50, num_frames=10):
     z_data = [function(xy.T) for xy in xy_data]
     return xy_data, z_data
 
-# def visualize_function(function, bounds, xy_data, z_data ,step=0.1, title="Function Visualization"):
-#     X_surf, Y_surf, Z_surf = make_surface(min=bounds[0], max=bounds[1], function=function, step=step)
-#     render_anim(X_surf, Y_surf, Z_surf, xy_data, z_data, title)
-
 def visualize_function(function, bounds, xy_data, z_data, title="Function Visualization"):
     range_size = bounds[1] - bounds[0]
     relative_step = range_size * 0.01
-    # print(f"Relative step: {relative_step}")
     X_surf, Y_surf, Z_surf = make_surface(min=bounds[0], max=bounds[1], function=function, step=relative_step)
     render_anim(X_surf, Y_surf, Z_surf, xy_data, z_data, title)
 
@@ -63,12 +60,14 @@ def launch(function, bounds, algorithm="blind_search", animate=True):
         v_min = (bounds[1] * -0.3) / 5
         v_max = (bounds[1] * 0.3) / 5
         best_position, best_value, xy_data, z_data = particle_swarm_optimization(function, bounds, dimension, pop_size=15, M_max=50, v_min = v_min, v_max = v_max, c1=2.0, c2=2.0)
+    elif algorithm == "soma":
+        best_position, best_value, xy_data, z_data = soma(function, bounds, dimension, pop_size=20, M_max=100, step=0.11, path_length=3.0)
     else:
         raise ValueError(f"Unknown algorithm: {algorithm}")
     if animate:
-        visualize_function(function, bounds, xy_data, z_data, title=f"{function.__name__} Function ({algorithm})")
+        visualize_function(function, bounds, xy_data, z_data, title=f"{function.__name__.capitalize()} Function ({algorithm.capitalize()})")
     else:
-        visualize_function(function, bounds, best_position, best_value, title=f"{function.__name__} Function ({algorithm})")    
+        visualize_function(function, bounds, best_position, best_value, title=f"{function.__name__.capitalize()} Function ({algorithm.capitalize()})")    
 
 functions = {
     "1": sphere,
@@ -87,7 +86,8 @@ algorithms = {
     "2": "hill_climbing",
     "3": "simulated_annealing",
     "4": "differential_evolution",
-    "5": "pso"
+    "5": "pso",
+    "6": "soma"
 }
 
 while True:
@@ -101,7 +101,7 @@ while True:
 
     wanna_animate = input(f"{Fore.MAGENTA}Would you like to animate the function? (y/n){Fore.RESET}")
     
-    chosen_algorithm = input(f"{Fore.CYAN}Choose algorithm: (1) Blind Search, (2) Hill Climbing, (3) Simulated Annealing, (4) Differential evolution, (5) PSO{Fore.RESET}\n")
+    chosen_algorithm = input(f"{Fore.CYAN}Choose algorithm: (1) Blind Search, (2) Hill Climbing,\n(3)Simulated Annealing, (4) Differential evolution, (5) PSO, (6) SOMA{Fore.RESET}\n")
 
     algorithm_to_launch = algorithms.get(chosen_algorithm)
     

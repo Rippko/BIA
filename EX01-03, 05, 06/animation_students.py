@@ -226,7 +226,7 @@ def particle_swarm_optimization(function, bounds, dimension, pop_size, M_max, v_
     while m < M_max:
         for i in range(pop_size):
             r1, r2 = np.random.uniform(0, 1, 2)
-            w = ws - ((ws - we) * i) / M_max
+            w = ws - ((ws - we) * m) / M_max
             velocities[i] = (
                 w * velocities[i]
                 + c1 * r1 * (p_best[i] - swarm[i])
@@ -257,6 +257,55 @@ def particle_swarm_optimization(function, bounds, dimension, pop_size, M_max, v_
     best_value = [np.array(global_best_fitness)]
 
     return best_position, best_value, xy_data, z_data
+
+def soma(function, bounds, dimension, pop_size, M_max, step, path_length, prt=0.4):
+    lower_bound, upper_bound = bounds
+    swarm = np.random.uniform(lower_bound, upper_bound, (pop_size, dimension))
+    fitness = np.array([function(individual) for individual in swarm])
+    
+    leader_index = np.argmin(fitness)
+    leader_position = np.copy(swarm[leader_index])
+    leader_fitness = fitness[leader_index]
+
+    xy_data, z_data = [], []
+
+    for _ in range(M_max):
+        new_population = np.copy(swarm)
+
+        for i in range(pop_size):
+            if i == leader_index:
+                continue
+            
+            individual = swarm[i]
+            current_fitness = fitness[i]
+            migration_vector = leader_position - individual
+
+            for t in np.arange(0, path_length + step, step):
+                perturbation = np.random.uniform(0, 1, dimension) < prt
+                trial_position = individual + t * migration_vector * perturbation
+                trial_position = np.clip(trial_position, lower_bound, upper_bound)
+
+                trial_fitness = function(trial_position)
+
+                if trial_fitness < current_fitness:
+                    new_population[i] = trial_position
+                    current_fitness = trial_fitness
+
+        swarm = np.copy(new_population)
+        fitness = np.array([function(ind) for ind in swarm])
+
+        leader_index = np.argmin(fitness)
+        leader_position = np.copy(swarm[leader_index])
+        leader_fitness = fitness[leader_index]
+
+        xy_data.append(np.copy(swarm[:, :2]))
+        z_data.append(np.copy(fitness))
+
+    best_position = [np.array(leader_position)]
+    best_value = [np.array(leader_fitness)]
+
+    return best_position, best_value, xy_data, z_data
+
 
 
 def update_frame(
@@ -304,7 +353,7 @@ def render_anim(
             update_frame,
             len(xy_data),
             fargs=(xy_data, z_data, [scat], [ax]),
-            interval=300,
+            interval=600,
             repeat=False,
         )
     else:
