@@ -1,7 +1,7 @@
 import numpy as np
 from colorama import Fore
 import time
-from animation_students import (
+from animations_students import (
     render_graph,
     render_anim,
     make_surface,
@@ -30,6 +30,8 @@ from animation_students import (
     differential_evolution,
     particle_swarm_optimization,
     soma,
+    firefly_algorithm,
+    tlbo_algorithm,
 )
 
 def generate_random_data(function, bounds, num_points=50, num_frames=10):
@@ -62,6 +64,10 @@ def launch(function, bounds, algorithm="blind_search", animate=True):
         best_position, best_value, xy_data, z_data = particle_swarm_optimization(function, bounds, dimension, pop_size=15, M_max=50, v_min = v_min, v_max = v_max, c1=2.0, c2=2.0)
     elif algorithm == "soma":
         best_position, best_value, xy_data, z_data = soma(function, bounds, dimension, pop_size=20, M_max=100, step=0.11, path_length=3.0)
+    elif algorithm == "firefly_algorithm":
+        best_position, best_value, xy_data, z_data = firefly_algorithm(function, bounds, dimension, pop_size=50, M_max=300)
+    elif algorithm == "tlbo_algorithm":
+        best_position, best_value, xy_data, z_data = tlbo_algorithm(function, bounds, dimension, pop_size=50, M_max=500)
     else:
         raise ValueError(f"Unknown algorithm: {algorithm}")
     if animate:
@@ -78,7 +84,7 @@ functions = {
     "6": griewangk,
     "7": levy,
     "8": michalewicz,
-    "9": zakharov
+    "9": zakharov,
 }
 
 algorithms = {
@@ -87,7 +93,9 @@ algorithms = {
     "3": "simulated_annealing",
     "4": "differential_evolution",
     "5": "pso",
-    "6": "soma"
+    "6": "soma",
+    "7": "firefly_algorithm",
+    "8": "tlbo_algorithm",
 }
 
 while True:
@@ -101,7 +109,7 @@ while True:
 
     wanna_animate = input(f"{Fore.MAGENTA}Would you like to animate the function? (y/n){Fore.RESET}")
     
-    chosen_algorithm = input(f"{Fore.CYAN}Choose algorithm: (1) Blind Search, (2) Hill Climbing,\n(3)Simulated Annealing, (4) Differential evolution, (5) PSO, (6) SOMA{Fore.RESET}\n")
+    chosen_algorithm = input(f"{Fore.CYAN}Choose algorithm: (1) Blind Search, (2) Hill Climbing,\n(3)Simulated Annealing, (4) Differential evolution, (5) PSO, (6) SOMA, (7) Firefly alg., (8) TLBO alg.{Fore.RESET}\n")
 
     algorithm_to_launch = algorithms.get(chosen_algorithm)
     

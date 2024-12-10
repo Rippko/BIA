@@ -3,6 +3,7 @@ import seaborn as sns
 from matplotlib import pyplot as plt
 from matplotlib.animation import FuncAnimation
 from matplotlib import cm
+import pandas as pd
 from copy import deepcopy
 
 
@@ -306,6 +307,90 @@ def soma(function, bounds, dimension, pop_size, M_max, step, path_length, prt=0.
 
     return best_position, best_value, xy_data, z_data
 
+def firefly_algorithm(function, bounds, dimension, pop_size, M_max, alpha=0.3, beta_0=1.0, gamma=2.0):
+    lower_bound, upper_bound = bounds
+    fireflies = np.random.uniform(lower_bound, upper_bound, (pop_size, dimension))
+    light_intensity = np.array([function(firefly) for firefly in fireflies])
+    xy_data, z_data = [], []
+
+    for _ in range(M_max):
+        for i in range(pop_size):
+            for j in range(pop_size):
+                if i != j:
+                    distance = np.linalg.norm(fireflies[i] - fireflies[j])
+
+                    light_intensity_i = light_intensity[i] * np.exp(-gamma * distance)
+                    light_intensity_j = light_intensity[j] * np.exp(-gamma * distance)
+
+                    if light_intensity_j < light_intensity_i:
+                        #moving firefly i towards j
+                        beta = beta_0 / (1 + distance)
+                        epsilon = np.random.normal(0, 1, dimension)
+                        fireflies[i] += beta * (fireflies[j] - fireflies[i]) + alpha * epsilon
+                        fireflies[i] = np.clip(fireflies[i], lower_bound, upper_bound)
+
+                        current_light_intensity = function(fireflies[i])
+                        light_intensity[i] = current_light_intensity
+
+        xy_data.append(np.copy(fireflies[:, :2]))
+        z_data.append(np.copy(light_intensity))
+    # Find the best firefly
+    best_index = np.argmin(light_intensity)
+    best_position = [np.array(fireflies[best_index])]
+    best_value = [np.array(light_intensity[best_index])]
+
+    return best_position, best_value, xy_data, z_data
+
+def tlbo_algorithm(function, bounds, dimension, pop_size, M_max):
+    lower_bound, upper_bound = bounds
+    students = np.random.uniform(lower_bound, upper_bound, (pop_size, dimension))
+    fitness_values = np.array([function(student) for student in students])
+    
+    xy_data, z_data = [], []
+
+    for _ in range(M_max):
+        teacher_index = np.argmin(fitness_values)
+        teacher = students[teacher_index]
+        mean = np.mean(students, axis=0)
+        teaching_factor = np.random.choice([1, 2])
+        
+        for i in range(pop_size):
+            r = np.random.uniform(0, 1, dimension)
+            new_position = students[i] + r * (teacher - teaching_factor * mean)
+            new_position = np.clip(new_position, lower_bound, upper_bound)
+            new_fitness = function(new_position)
+            
+            if new_fitness < fitness_values[i]:
+                students[i] = new_position
+                fitness_values[i] = new_fitness
+
+        for i in range(pop_size):
+            partner_index = np.random.choice([x for x in range(pop_size) if x != i])
+            partner = students[partner_index]
+            r = np.random.uniform(0, 1, dimension)
+            
+            if fitness_values[i] < fitness_values[partner_index]:
+                new_position = students[i] + r * (students[i] - partner)
+            else:
+                new_position = students[i] - r * (students[i] - partner)
+            
+            new_position = np.clip(new_position, lower_bound, upper_bound)
+            new_fitness = function(new_position)
+            
+            if new_fitness < fitness_values[i]:
+                students[i] = new_position
+                fitness_values[i] = new_fitness
+
+        xy_data.append(np.copy(students[:, :2]))
+        z_data.append(np.copy(fitness_values))
+    
+    best_index = np.argmin(fitness_values)
+    best_position = [np.array(students[best_index])]
+    best_value = [np.array(fitness_values[best_index])]
+
+    return best_position, best_value, xy_data, z_data
+
+
 def update_frame(
     i: int,
     xy_data: list[np.array],
@@ -351,7 +436,7 @@ def render_anim(
             update_frame,
             len(xy_data),
             fargs=(xy_data, z_data, [scat], [ax]),
-            interval=600,
+            interval=10,
             repeat=False,
         )
     else:
