@@ -4,6 +4,8 @@ from matplotlib import pyplot as plt
 from matplotlib.animation import FuncAnimation
 from matplotlib import cm
 import pandas as pd
+from openpyxl import load_workbook
+from openpyxl.styles import Font, Border, Side
 from copy import deepcopy
 
 
@@ -167,9 +169,7 @@ def simulated_annealing(
     
     return best_position, best_value, xy_data, z_data
 
-def differential_evolution(
-    function, bounds, dimension, NP, g_max, F, CR
-):
+def differential_evolution(function, bounds, dimension, NP, g_max, F, CR):
     lower_bound, upper_bound = bounds
     pop = np.random.uniform(lower_bound, upper_bound, (NP, dimension))
     fitness = np.array([function(ind) for ind in pop])
@@ -259,11 +259,12 @@ def particle_swarm_optimization(function, bounds, dimension, pop_size, M_max, v_
 
     return best_position, best_value, xy_data, z_data
 
-def soma(function, bounds, dimension, pop_size, M_max, step, path_length, prt=0.4):
+def soma(function, bounds, dimension, pop_size, M_max, step, path_length, prt=0.4, M_OFE=3000):
+    M_OFE_counter = 0
     lower_bound, upper_bound = bounds
     swarm = np.random.uniform(lower_bound, upper_bound, (pop_size, dimension))
     fitness = np.array([function(individual) for individual in swarm])
-    
+    M_OFE_counter += pop_size
     leader_index = np.argmin(fitness)
     leader_position = np.copy(swarm[leader_index])
     leader_fitness = fitness[leader_index]
@@ -272,8 +273,11 @@ def soma(function, bounds, dimension, pop_size, M_max, step, path_length, prt=0.
 
     for _ in range(M_max):
         new_population = np.copy(swarm)
-
+        if M_OFE_counter >= M_OFE:
+            break
         for i in range(pop_size):
+            if M_OFE_counter >= M_OFE:
+                break
             if i == leader_index:
                 continue
             
@@ -282,11 +286,14 @@ def soma(function, bounds, dimension, pop_size, M_max, step, path_length, prt=0.
             migration_vector = leader_position - individual
 
             for t in np.arange(0, path_length + step, step):
+                if M_OFE_counter >= M_OFE:
+                    break
                 perturbation = np.random.uniform(0, 1, dimension) < prt
                 trial_position = individual + t * migration_vector * perturbation
                 trial_position = np.clip(trial_position, lower_bound, upper_bound)
 
                 trial_fitness = function(trial_position)
+                M_OFE_counter += 1
 
                 if trial_fitness < current_fitness:
                     new_population[i] = trial_position
@@ -294,6 +301,7 @@ def soma(function, bounds, dimension, pop_size, M_max, step, path_length, prt=0.
 
         swarm = np.copy(new_population)
         fitness = np.array([function(ind) for ind in swarm])
+        M_OFE_counter += pop_size
 
         leader_index = np.argmin(fitness)
         leader_position = np.copy(swarm[leader_index])
@@ -307,15 +315,23 @@ def soma(function, bounds, dimension, pop_size, M_max, step, path_length, prt=0.
 
     return best_position, best_value, xy_data, z_data
 
-def firefly_algorithm(function, bounds, dimension, pop_size, M_max, alpha=0.3, beta_0=1.0, gamma=2.0):
+def firefly_algorithm(function, bounds, dimension, pop_size, M_max=2000, alpha=0.3, beta_0=1.0, gamma=2.0, M_OFE=3000):
+    M_OFE_counter = 0
     lower_bound, upper_bound = bounds
     fireflies = np.random.uniform(lower_bound, upper_bound, (pop_size, dimension))
     light_intensity = np.array([function(firefly) for firefly in fireflies])
+    M_OFE_counter += pop_size
     xy_data, z_data = [], []
 
     for _ in range(M_max):
+        if M_OFE_counter >= M_OFE:
+            break
         for i in range(pop_size):
+            if M_OFE_counter >= M_OFE:
+                break
             for j in range(pop_size):
+                if M_OFE_counter >= M_OFE:
+                    break
                 if i != j:
                     distance = np.linalg.norm(fireflies[i] - fireflies[j])
 
@@ -328,8 +344,8 @@ def firefly_algorithm(function, bounds, dimension, pop_size, M_max, alpha=0.3, b
                         epsilon = np.random.normal(0, 1, dimension)
                         fireflies[i] += beta * (fireflies[j] - fireflies[i]) + alpha * epsilon
                         fireflies[i] = np.clip(fireflies[i], lower_bound, upper_bound)
-
                         current_light_intensity = function(fireflies[i])
+                        M_OFE_counter += 1
                         light_intensity[i] = current_light_intensity
 
         xy_data.append(np.copy(fireflies[:, :2]))
@@ -338,7 +354,6 @@ def firefly_algorithm(function, bounds, dimension, pop_size, M_max, alpha=0.3, b
     best_index = np.argmin(light_intensity)
     best_position = [np.array(fireflies[best_index])]
     best_value = [np.array(light_intensity[best_index])]
-
     return best_position, best_value, xy_data, z_data
 
 def tlbo_algorithm(function, bounds, dimension, pop_size, M_max):
@@ -349,12 +364,11 @@ def tlbo_algorithm(function, bounds, dimension, pop_size, M_max):
     xy_data, z_data = [], []
 
     for _ in range(M_max):
-        teacher_index = np.argmin(fitness_values)
-        teacher = students[teacher_index]
-        mean = np.mean(students, axis=0)
-        teaching_factor = np.random.choice([1, 2])
-        
         for i in range(pop_size):
+            teacher_index = np.argmin(fitness_values)
+            teacher = students[teacher_index]
+            mean = np.mean(students, axis=0)
+            teaching_factor = np.random.choice([1, 2])
             r = np.random.uniform(0, 1, dimension)
             new_position = students[i] + r * (teacher - teaching_factor * mean)
             new_position = np.clip(new_position, lower_bound, upper_bound)
@@ -364,7 +378,6 @@ def tlbo_algorithm(function, bounds, dimension, pop_size, M_max):
                 students[i] = new_position
                 fitness_values[i] = new_fitness
 
-        for i in range(pop_size):
             partner_index = np.random.choice([x for x in range(pop_size) if x != i])
             partner = students[partner_index]
             r = np.random.uniform(0, 1, dimension)
@@ -389,6 +402,59 @@ def tlbo_algorithm(function, bounds, dimension, pop_size, M_max):
     best_value = [np.array(fitness_values[best_index])]
 
     return best_position, best_value, xy_data, z_data
+
+def run_experiments(function, dimension, population_size, max_evaluations, num_experiments, bounds, output_file):
+    algorithms = {
+        "Differential Evolution": lambda f: differential_evolution(f, bounds, dimension, population_size, (max_evaluations - population_size) // population_size, F=0.5, CR=0.9),
+        "Particle Swarm Optimization": lambda f: particle_swarm_optimization(f, bounds, dimension, population_size, (max_evaluations - population_size) // population_size , v_min=-2, v_max=2),
+        "SOMA": lambda f: soma(f, bounds, dimension, population_size, max_evaluations, step=0.11, path_length=3.0, prt=0.4),
+        "Firefly Algorithm": lambda f: firefly_algorithm(f, bounds, dimension, population_size),
+        "TLBO": lambda f: tlbo_algorithm(f, bounds, dimension, population_size, (max_evaluations - population_size) // (population_size * 2)),
+    }
+
+    experiment_results = {alg: [] for alg in algorithms}
+    
+    for alg_name, alg in algorithms.items():
+        print("Running experiments for ", alg_name)
+        for num in range(num_experiments):
+            best_position, best_value, _, _ = alg(function)
+            experiment_results[alg_name].append(best_value[0])
+            print(f"Experiment {num + 1} completed with best value: {best_value[0]}")
+
+    rows = []
+    for i in range(num_experiments):
+        row = {alg_name: experiment_results[alg_name][i] for alg_name in algorithms}
+        row["Experiment"] = f"Experiment {i + 1}"
+        rows.append(row)
+    
+    summary_row = {alg_name: f"{np.mean(experiment_results[alg_name]):.4f} / {np.std(experiment_results[alg_name]):.4f}" for alg_name in algorithms}
+    summary_row["Experiment"] = "Mean / Std. Dev"
+    rows.append(summary_row)
+
+    df = pd.DataFrame(rows)
+    df = df[["Experiment"] + list(algorithms.keys())]
+    df.to_excel(output_file, index=False)
+
+    wb = load_workbook(output_file)
+    ws = wb.active
+    last_row = ws.max_row
+    for cell in ws[last_row]:
+        cell.font = Font(bold=True)
+    
+    thin_border = Border(
+        left=Side(style="thin"),
+        right=Side(style="thin"),
+        top=Side(style="thin"),
+        bottom=Side(style="thin"),
+    )
+
+    for row in ws.iter_rows(min_row=1, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
+        for cell in row:
+            cell.border = thin_border
+
+    wb.save(output_file)
+
+    print(f"Results successfully saved to {output_file}")
 
 
 def update_frame(

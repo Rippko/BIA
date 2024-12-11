@@ -32,6 +32,7 @@ from animations_students import (
     soma,
     firefly_algorithm,
     tlbo_algorithm,
+    run_experiments,
 )
 
 def generate_random_data(function, bounds, num_points=50, num_frames=10):
@@ -45,7 +46,6 @@ def visualize_function(function, bounds, xy_data, z_data, title="Function Visual
     relative_step = range_size * 0.01
     X_surf, Y_surf, Z_surf = make_surface(min=bounds[0], max=bounds[1], function=function, step=relative_step)
     render_anim(X_surf, Y_surf, Z_surf, xy_data, z_data, title)
-
 
 def launch(function, bounds, algorithm="blind_search", animate=True):
     dimension = 2
@@ -68,6 +68,9 @@ def launch(function, bounds, algorithm="blind_search", animate=True):
         best_position, best_value, xy_data, z_data = firefly_algorithm(function, bounds, dimension, pop_size=50, M_max=300)
     elif algorithm == "tlbo_algorithm":
         best_position, best_value, xy_data, z_data = tlbo_algorithm(function, bounds, dimension, pop_size=50, M_max=500)
+    elif algorithm == "run_experiments":
+        run_experiments(function=function, dimension=30, population_size=30, max_evaluations=3000, num_experiments=30, bounds=bounds, output_file="results.xlsx")
+        return
     else:
         raise ValueError(f"Unknown algorithm: {algorithm}")
     if animate:
@@ -99,7 +102,7 @@ algorithms = {
 }
 
 while True:
-    chosen_function = input(f"{Fore.MAGENTA}Enter which function you would like to display\n {Fore.CYAN}(1) Sphere\n (2) Schwefel\n (3) Ackley\n (4) Rastrigin\n (5) Rosenbrock\n (6) Griewangk\n (7) Levy\n (8) Michalewicz\n (9) Zakharov\n (0) Exit\n {Fore.RESET}")
+    chosen_function = input(f"{Fore.MAGENTA}Choose function:\n{Fore.CYAN} (1) Sphere\n (2) Schwefel\n (3) Ackley\n (4) Rastrigin\n (5) Rosenbrock\n (6) Griewangk\n (7) Levy\n (8) Michalewicz\n (9) Zakharov\n (0) Exit\n {Fore.RESET}")
     if chosen_function == "0":
         print(f"{Fore.YELLOW}Exiting...See you next time! {Fore.RESET}")
         break
@@ -107,14 +110,15 @@ while True:
         print(f"{Fore.RED}!!! Invalid input. Please enter a number between 1 and 9 !!!{Fore.RESET}\n")
         continue
 
+    wanna_run_experimets = input(f"{Fore.MAGENTA}Would you like to run experiments? (y/n){Fore.RESET}")
+    if wanna_run_experimets == "y":
+        launch(functions[chosen_function], globals()[f"{functions[chosen_function].__name__.upper()}_BOUNDS"], "run_experiments", False)
+        break
+
     wanna_animate = input(f"{Fore.MAGENTA}Would you like to animate the function? (y/n){Fore.RESET}")
     
-    chosen_algorithm = input(f"{Fore.CYAN}Choose algorithm: (1) Blind Search, (2) Hill Climbing,\n(3)Simulated Annealing, (4) Differential evolution, (5) PSO, (6) SOMA, (7) Firefly alg., (8) TLBO alg.{Fore.RESET}\n")
+    chosen_algorithm = input(f"{Fore.CYAN}Choose algorithm: (1) Blind Search, (2) Hill Climbing,\n (3)Simulated Annealing, (4) Differential evolution, (5) PSO, (6) SOMA,\n (7) Firefly alg., (8) TLBO alg.{Fore.RESET}\n")
 
     algorithm_to_launch = algorithms.get(chosen_algorithm)
     
-    if chosen_function in functions:
-        function_to_launch = functions[chosen_function]
-        launch(function_to_launch, globals()[f"{function_to_launch.__name__.upper()}_BOUNDS"], algorithm_to_launch, True if wanna_animate == "y" else False)
-    else:
-        print("Invalid input. Please enter a number between 1 and 9.")
+    launch(functions[chosen_function], globals()[f"{functions[chosen_function].__name__.upper()}_BOUNDS"], algorithm_to_launch, True if wanna_animate == "y" else False)
